@@ -1,0 +1,1000 @@
+cat << 'EOF' > juego_violin_baal_perfecto.py
+import pygame
+import math
+import random
+import sys
+import array
+
+WIDTH, HEIGHT = 1024, 600
+FPS = 60
+GROUND_Y = HEIGHT - 80
+GAME_DURATION_SEC = 60
+
+COLOR_BG_NIGHT = (15, 18, 35)
+COLOR_STAFF = (40, 30, 20)
+COLOR_VIOLIN_WOOD = (180, 85, 25)
+COLOR_VIOLIN_DARK = (100, 45, 10)
+COLOR_SPIDER = (70, 15, 90)
+COLOR_BIG_SPIDER = (35, 8, 50)
+COLOR_BOSS_BAAL = (45, 15, 60)
+COLOR_SHARP = (20, 150, 50)
+COLOR_FLAT = (200, 30, 50)
+COLOR_HUD = (230, 230, 245)
+COLOR_BLANCA = (30, 120, 230)
+COLOR_WEAPON = (220, 170, 30)
+
+pygame.init()
+pygame.font.init()
+
+AUDIO_FREQ = 22050
+AUDIO_AVAILABLE = False
+try:
+    pygame.mixer.init(frequency=AUDIO_FREQ, size=-16, channels=1, buffer=512)
+    AUDIO_AVAILABLE = True
+except Exception as e:
+    print(f"Aviso: Audio no disponible ({e}). Modo silencioso.")
+
+def play_tone(freq, duration=0.4, volume=0.3):
+    if not AUDIO_AVAILABLE: return
+    try:
+        n_samples = int(AUDIO_FREQ * duration)
+        buf = array.array('h', [0] * n_samples)
+        max_amp = 32767 * volume
+        for i in range(n_samples):
+            t = float(i) / AUDIO_FREQ
+            envelope = max(0.0, 1.0 - (i / n_samples))
+            val = int(math.sin(2.0 * math.pi * freq * t) * max_amp * envelope)
+            buf[i] = val
+        sound = pygame.mixer.Sound(buffer=buf)
+        sound.play()
+    except Exception: pass
+
+def play_powerup_sound():
+    if not AUDIO_AVAILABLE: return
+    try:
+        notes = [523.25, 659.25, 783.99, 1046.50]
+        for freq in notes:
+            n_samples = int(AUDIO_FREQ * 0.07)
+            buf = array.array('h', [0] * n_samples)
+            max_amp = 32767 * 0.35
+            for i in range(n_samples):
+                t = float(i) / AUDIO_FREQ
+                envelope = max(0.0, 1.0 - (i / n_samples))
+                val = int((1.0 if math.sin(2.0 * math.pi * freq * t) > 0 else -1.0) * max_amp * envelope)
+                buf[i] = val
+            pygame.mixer.Sound(buffer=buf).play()
+            pygame.time.delay(40)
+    except Exception: pass
+
+def play_bomb_explosion_sound():
+    if not AUDIO_AVAILABLE: return
+    try:
+        n_samples = int(AUDIO_FREQ * 0.2)
+        buf = array.array('h', [0] * n_samples)
+        for i in range(n_samples):
+            envelope = max(0.0, 1.0 - (i / n_samples))
+            val = int(random.uniform(-1, 1) * 16000 * envelope)
+            buf[i] = val
+        pygame.mixer.Sound(buffer=buf).play()
+    except Exception: pass
+
+def play_white_noise_shot():
+    if not AUDIO_AVAILABLE: return
+    try:
+        n_samples = int(AUDIO_FREQ * 0.05)
+        buf = array.array('h', [0] * n_samples)
+        for i in range(n_samples):
+            envelope = max(0.0, 1.0 - (i / n_samples))
+            val = int(random.uniform(-1, 1) * 10000 * envelope)
+            buf[i] = val
+        pygame.mixer.Sound(buffer=buf).play()
+    except Exception: pass
+
+def play_small_bug_death():
+    if not AUDIO_AVAILABLE: return
+    try:
+        n_samples = int(AUDIO_FREQ * 0.12)
+        buf = array.array('h', [0] * n_samples)
+        for i in range(n_samples):
+            t = float(i) / AUDIO_FREQ
+            freq = 950 - (i * 6)
+            envelope = max(0.0, 1.0 - (i / n_samples))
+            val = int((math.sin(2.0 * math.pi * freq * t) + random.uniform(-0.4, 0.4)) * 9000 * envelope)
+            buf[i] = val
+        pygame.mixer.Sound(buffer=buf).play()
+    except Exception: pass
+
+def play_big_bug_death():
+    if not AUDIO_AVAILABLE: return
+    try:
+        n_samples = int(AUDIO_FREQ * 0.25)
+        buf = array.array('h', [0] * n_samples)
+        for i in range(n_samples):
+            t = float(i) / AUDIO_FREQ
+            freq = 220 - (i * 0.7)
+            envelope = max(0.0, 1.0 - (i / n_samples))
+            val = int((math.sin(2.0 * math.pi * freq * t) + random.uniform(-0.8, 0.8)) * 15000 * envelope)
+            buf[i] = val
+        pygame.mixer.Sound(buffer=buf).play()
+    except Exception: pass
+
+def play_fur_elise_victory():
+    if not AUDIO_AVAILABLE: return
+    try:
+        notes = [659.25, 622.25, 659.25, 622.25, 659.25, 493.88, 587.33, 523.25, 440.00]
+        durations = [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.6]
+        for freq, dur in zip(notes, durations):
+            n_samples = int(AUDIO_FREQ * dur)
+            buf = array.array('h', [0] * n_samples)
+            max_amp = 32767 * 0.5
+            for i in range(n_samples):
+                t = float(i) / AUDIO_FREQ
+                envelope = max(0.0, 1.0 - (i / n_samples))
+                val = int(math.sin(2.0 * math.pi * freq * t) * max_amp * envelope)
+                buf[i] = val
+            pygame.mixer.Sound(buffer=buf).play()
+            pygame.time.delay(int(dur * 900))
+    except Exception: pass
+
+def play_key_pickup_sound():
+    if not AUDIO_AVAILABLE: return
+    try:
+        notes = [440, 554.37, 659.25, 880]
+        for freq in notes:
+            n_samples = int(AUDIO_FREQ * 0.08)
+            buf = array.array('h', [0] * n_samples)
+            max_amp = 32767 * 0.3
+            for i in range(n_samples):
+                t = float(i) / AUDIO_FREQ
+                envelope = max(0.0, 1.0 - (i / n_samples))
+                val = int(math.sin(2.0 * math.pi * freq * t) * max_amp * envelope)
+                buf[i] = val
+            pygame.mixer.Sound(buffer=buf).play()
+            pygame.time.delay(50)
+    except Exception: pass
+
+def play_defeat_sound():
+    if not AUDIO_AVAILABLE: return
+    try:
+        notes = [200, 170, 140, 100]
+        durations = [0.2, 0.2, 0.2, 0.5]
+        for freq, dur in zip(notes, durations):
+            n_samples = int(AUDIO_FREQ * dur)
+            buf = array.array('h', [0] * n_samples)
+            max_amp = 32767 * 0.4
+            for i in range(n_samples):
+                t = float(i) / AUDIO_FREQ
+                envelope = max(0.0, 1.0 - (i / n_samples))
+                val = int(math.sin(2.0 * math.pi * freq * t) * max_amp * envelope)
+                buf[i] = val
+            pygame.mixer.Sound(buffer=buf).play()
+            pygame.time.delay(int(dur * 700))
+    except Exception: pass
+
+def play_boss_ugly_sound():
+    if not AUDIO_AVAILABLE: return
+    try:
+        n_samples = int(AUDIO_FREQ * 0.25)
+        buf = array.array('h', [0] * n_samples)
+        for i in range(n_samples):
+            val = 24000 if (i % 7 < 3) else -24000
+            buf[i] = val
+        pygame.mixer.Sound(buffer=buf).play()
+    except Exception: pass
+
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("LA NOTA OCULTA - NIVEL 2: EL VIOLÍN Y BAAL")
+clock = pygame.time.Clock()
+
+STAFF_BOTTOM_Y = GROUND_Y - 50
+STAFF_STEP = 16
+
+NOTES_DICT = {
+    "MI+": (659.25, STAFF_BOTTOM_Y - STAFF_STEP * 3.5, False),
+    "RE#+": (622.25, STAFF_BOTTOM_Y - STAFF_STEP * 3.0, False),
+    "SI": (493.88, STAFF_BOTTOM_Y - STAFF_STEP * 2.0, False),
+    "RE+": (587.33, STAFF_BOTTOM_Y - STAFF_STEP * 3.0, False),
+    "DO+": (523.25, STAFF_BOTTOM_Y - STAFF_STEP * 2.5, False),
+    "LA": (440.00, STAFF_BOTTOM_Y - STAFF_STEP * 1.5, False),
+    "DO": (261.63, STAFF_BOTTOM_Y + STAFF_STEP * 1.0, True),
+    "FA+": (698.46, STAFF_BOTTOM_Y - STAFF_STEP * 4.0, False),
+    "SOL": (392.00, STAFF_BOTTOM_Y - STAFF_STEP * 1.0, False),
+}
+
+PARA_ELISE_SEQUENCE = [
+    ("MI+","NEGRA"), ("RE#+","NEGRA"), ("MI+","NEGRA"), ("RE#+","NEGRA"), 
+    ("MI+","NEGRA"), ("SI","NEGRA"), ("RE+","NEGRA"), ("DO+","NEGRA"), ("LA","BLANCA"),
+    ("DO","NEGRA"), ("MI+","NEGRA"), ("LA","NEGRA"), ("SI","BLANCA"),
+    ("RE+","NEGRA"), ("FA+","NEGRA"), ("SI","NEGRA"), ("DO+","BLANCA")
+]
+
+class NoteExplosion(pygame.sprite.Sprite):
+    def __init__(self, x, y, color):
+        super().__init__()
+        self.particles = []
+        for _ in range(12):
+            angle = random.uniform(0, math.pi * 2)
+            speed = random.uniform(2, 6)
+            self.particles.append([x, y, math.cos(angle) * speed, math.sin(angle) * speed, random.randint(12, 20)])
+        self.color = color
+        self.image = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        self.rect = self.image.get_rect()
+
+    def update(self):
+        alive = False
+        self.image.fill((0, 0, 0, 0))
+        for p in self.particles:
+            if p[4] > 0:
+                p[0] += p[2]
+                p[1] += p[3]
+                p[4] -= 1
+                alive = True
+                pygame.draw.circle(self.image, self.color, (int(p[0]), int(p[1])), max(1, p[4] // 3))
+        if not alive:
+            self.kill()
+
+class MassiveExplosion(pygame.sprite.Sprite):
+    def __init__(self, x, y, radius):
+        super().__init__()
+        self.radius = radius
+        self.current_radius = 10
+        self.image = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+        self.rect = self.image.get_rect(center=(x, y))
+        self.timer = 0
+
+    def update(self):
+        self.timer += 1
+        self.current_radius += 12
+        self.image.fill((0, 0, 0, 0))
+        alpha = max(0, 255 - (self.timer * 20))
+        pygame.draw.circle(self.image, (255, 100, 0, alpha), (self.radius, self.radius), min(self.current_radius, self.radius))
+        pygame.draw.circle(self.image, (255, 255, 0, alpha // 2), (self.radius, self.radius), min(self.current_radius // 2, self.radius))
+        if self.timer > 15:
+            self.kill()
+
+class KeyItem(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__()
+        self.image = pygame.Surface((40, 40), pygame.SRCALPHA)
+        self.rect = self.image.get_rect(center=(x, y))
+        self.anim = 0
+        self._draw()
+
+    def _draw(self):
+        self.image.fill((0, 0, 0, 0))
+        pygame.draw.circle(self.image, (255, 215, 0), (20, 12), 10, 3)
+        pygame.draw.rect(self.image, (255, 215, 0), (16, 20, 8, 18), border_radius=2)
+        pygame.draw.rect(self.image, (255, 215, 0), (22, 26, 8, 4))
+        pygame.draw.rect(self.image, (255, 215, 0), (22, 33, 8, 4))
+
+    def update(self):
+        self.anim += 0.15
+        self.rect.y += math.sin(self.anim) * 0.8
+
+class DoorObject(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__()
+        self.image = pygame.Surface((65, 95), pygame.SRCALPHA)
+        self.rect = self.image.get_rect(midbottom=(x, y))
+        self.is_open = False
+        self._draw()
+
+    def _draw(self):
+        self.image.fill((0, 0, 0, 0))
+        if not self.is_open:
+            pygame.draw.rect(self.image, (90, 40, 15), (0, 0, 65, 95), border_radius=8)
+            pygame.draw.rect(self.image, (50, 20, 10), (5, 5, 55, 85), border_radius=6)
+            pygame.draw.circle(self.image, (255, 215, 0), (52, 48), 6)
+        else:
+            pygame.draw.rect(self.image, (160, 40, 200), (0, 0, 65, 95), border_radius=8)
+            pygame.draw.rect(self.image, (80, 10, 110), (8, 8, 49, 79))
+
+    def open_door(self):
+        self.is_open = True
+        self._draw()
+
+class NightViolinBackground:
+    def __init__(self):
+        self.stars = [(random.randint(0, WIDTH), random.randint(10, 220), random.choice([1, 2, 3])) for _ in range(60)]
+        self.surprise_timer = 0
+
+    def trigger_surprise(self):
+        self.surprise_timer = 30
+
+    def draw(self, surface, scroll_offset, boss_spawned):
+        surface.fill(COLOR_BG_NIGHT)
+
+        if self.surprise_timer > 0:
+            self.surprise_timer -= 1
+
+        moon_x, moon_y = 110, 90
+        pygame.draw.circle(surface, (240, 240, 210), (moon_x, moon_y), 32)
+        pygame.draw.circle(surface, COLOR_BG_NIGHT, (moon_x + 10, moon_y - 6), 28)
+
+        is_surprised = self.surprise_timer > 0
+        if is_surprised:
+            pygame.draw.circle(surface, (40, 40, 50), (moon_x - 6, moon_y - 4), 4)
+            pygame.draw.circle(surface, (40, 40, 50), (moon_x + 8, moon_y - 4), 4)
+            pygame.draw.ellipse(surface, (40, 40, 50), (moon_x, moon_y + 4, 10, 16), 2)
+        else:
+            pygame.draw.circle(surface, (40, 40, 50), (moon_x - 6, moon_y - 4), 3)
+            pygame.draw.circle(surface, (40, 40, 50), (moon_x + 8, moon_y - 4), 3)
+            pygame.draw.arc(surface, (40, 40, 50), (moon_x - 3, moon_y - 2, 18, 16), math.pi, 2 * math.pi, 2)
+
+        t = pygame.time.get_ticks() * 0.003
+        for sx, sy, sz in self.stars:
+            brightness = int(180 + math.sin(t + sx) * 75)
+            pygame.draw.circle(surface, (brightness, brightness, brightness), (sx, sy), sz)
+
+        points_top = []
+        for x in range(0, WIDTH + 20, 20):
+            wave = math.sin((x + scroll_offset) * 0.005) * 45 + math.cos((x + scroll_offset) * 0.01) * 20
+            y_top = int(270 + wave)
+            points_top.append((x, y_top))
+
+        poly_points = [(0, HEIGHT)] + points_top + [(WIDTH, HEIGHT)]
+        pygame.draw.polygon(surface, COLOR_VIOLIN_WOOD, poly_points)
+        pygame.draw.lines(surface, COLOR_VIOLIN_DARK, False, points_top, 8)
+
+        for i in range(4):
+            fx = (i * 280 - int(scroll_offset * 0.5)) % (WIDTH + 280) - 80
+            fy = int(270 + math.sin((fx + scroll_offset) * 0.005) * 45 + math.cos((fx + scroll_offset) * 0.01) * 20) + 10
+            pygame.draw.ellipse(surface, COLOR_VIOLIN_DARK, (fx, fy, 12, 35))
+            pygame.draw.ellipse(surface, COLOR_VIOLIN_WOOD, (fx + 3, fy + 8, 6, 18))
+
+        string_surface = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        for offset_y in [-30, -22, -14, -6]:
+            str_points = [(px, py + offset_y) for px, py in points_top]
+            pygame.draw.lines(string_surface, (255, 235, 180, 70), False, str_points, 1)
+        surface.blit(string_surface, (0, 0))
+
+        # Clavijero / Cabeza del violín
+        scroll_x = WIDTH - 170
+        scroll_y = 110
+        pygame.draw.polygon(surface, COLOR_VIOLIN_DARK, [(scroll_x - 22, scroll_y + 40), (scroll_x + 22, scroll_y + 40), (scroll_x + 12, scroll_y - 30), (scroll_x - 12, scroll_y - 30)])
+        pygame.draw.polygon(surface, COLOR_VIOLIN_WOOD, [(scroll_x - 15, scroll_y + 35), (scroll_x + 15, scroll_y + 35), (scroll_x + 8, scroll_y - 25), (scroll_x - 8, scroll_y - 25)])
+        pygame.draw.circle(surface, COLOR_VIOLIN_DARK, (scroll_x, scroll_y - 35), 20, 6)
+        pygame.draw.circle(surface, COLOR_VIOLIN_WOOD, (scroll_x, scroll_y - 35), 14)
+        pygame.draw.circle(surface, COLOR_VIOLIN_DARK, (scroll_x, scroll_y - 35), 5)
+        pygame.draw.rect(surface, COLOR_VIOLIN_DARK, (scroll_x - 30, scroll_y - 10, 10, 6))
+        pygame.draw.rect(surface, COLOR_VIOLIN_DARK, (scroll_x + 20, scroll_y + 10, 10, 6))
+
+class Timmy(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.image = pygame.Surface((44, 55), pygame.SRCALPHA)
+        self.rect = self.image.get_rect(midbottom=(120, GROUND_Y))
+        self.vel_y = 0
+        self.jump_count = 0
+        self.lives = 25
+        self.score_times = 0.0
+        self.ammo_sharps = 80
+        self.ammo_flats = 30
+        self.weapon_level = 1
+        self.is_crouching = False
+        self.has_key = False
+        self.color = (220, 70, 40)
+        self._draw_character()
+
+    def _draw_character(self):
+        self.image.fill((0, 0, 0, 0))
+        h_offset = 18 if self.is_crouching else 0
+        skin_color = (195, 125, 80)
+
+        pygame.draw.ellipse(self.image, (30, 100, 200), (6, 2 + h_offset, 30, 10))
+        pygame.draw.polygon(self.image, (30, 100, 200), [(32, 8 + h_offset), (42, 12 + h_offset), (32, 15 + h_offset)])
+        pygame.draw.circle(self.image, skin_color, (22, 18 + h_offset), 12)
+
+        pygame.draw.line(self.image, (0, 0, 0), (13, 12 + h_offset), (19, 15 + h_offset), 2)
+        pygame.draw.line(self.image, (0, 0, 0), (31, 12 + h_offset), (25, 15 + h_offset), 2)
+        pygame.draw.circle(self.image, (0, 0, 0), (17, 17 + h_offset), 2)
+        pygame.draw.circle(self.image, (0, 0, 0), (27, 17 + h_offset), 2)
+
+        if not self.is_crouching:
+            pygame.draw.rect(self.image, (220, 50, 200), (10, 18, 24, 8), border_radius=2)
+            pygame.draw.rect(self.image, self.color, (12, 26, 20, 18), border_radius=3)
+            pygame.draw.line(self.image, (180, 50, 30), (20, 30), (30, 32), 4)
+            pygame.draw.rect(self.image, COLOR_WEAPON, (26, 28, 12, 5))
+            pygame.draw.polygon(self.image, COLOR_WEAPON, [(38, 25), (44, 21), (44, 35), (38, 31)])
+            pygame.draw.rect(self.image, (40, 40, 50), (14, 44, 5, 8))
+            pygame.draw.rect(self.image, (20, 20, 20), (13, 50, 7, 4))
+            pygame.draw.rect(self.image, (40, 40, 50), (25, 44, 5, 8))
+            pygame.draw.rect(self.image, (20, 20, 20), (24, 50, 7, 4))
+        else:
+            pygame.draw.rect(self.image, self.color, (10, 30, 24, 14), border_radius=3)
+            pygame.draw.rect(self.image, COLOR_WEAPON, (26, 32, 12, 5))
+            pygame.draw.polygon(self.image, COLOR_WEAPON, [(38, 29), (44, 25), (44, 39), (38, 35)])
+
+    def crouch(self, state):
+        if self.is_crouching != state:
+            self.is_crouching = state
+            bottom = self.rect.bottom
+            if self.is_crouching:
+                self.image = pygame.Surface((44, 45), pygame.SRCALPHA)
+            else:
+                self.image = pygame.Surface((44, 55), pygame.SRCALPHA)
+            self.rect = self.image.get_rect(midbottom=(self.rect.centerx, bottom))
+            self._draw_character()
+
+    def jump(self):
+        if self.jump_count < 2 and not self.is_crouching:
+            self.vel_y = -16
+            self.jump_count += 1
+            play_tone(150, 0.05, 0.2)
+
+    def update(self):
+        self._draw_character()
+        keys = pygame.key.get_pressed()
+        speed = 3 if self.is_crouching else 6
+
+        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+            self.rect.x -= speed
+        if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+            self.rect.x += speed
+
+        self.vel_y += 0.8
+        self.rect.y += self.vel_y
+
+        if self.rect.bottom >= GROUND_Y:
+            self.rect.bottom = GROUND_Y
+            self.vel_y = 0
+            self.jump_count = 0
+
+        self.rect.clamp_ip(screen.get_rect())
+
+    def evolve_weapon_check(self):
+        new_level = int(self.score_times // 30) + 1
+        if new_level > self.weapon_level:
+            self.weapon_level = new_level
+            self.ammo_sharps += 35
+
+class Projectile(pygame.sprite.Sprite):
+    def __init__(self, x, y, p_type="SHARP", level=1):
+        super().__init__()
+        self.p_type = p_type
+        self.level = level
+        self.image = pygame.Surface((24, 24), pygame.SRCALPHA)
+        self.rect = self.image.get_rect(center=(x, y))
+        font = pygame.font.Font(None, 28)
+        if p_type == "SHARP":
+            self.vx = 10 + (level * 1.5)
+            self.vy = 0
+            txt = font.render("#", True, COLOR_SHARP)
+            self.image.blit(txt, (4, 0))
+        elif p_type == "FLAT_GRANADE":
+            self.vx = 8
+            self.vy = -10
+            txt = font.render("b", True, COLOR_FLAT)
+            self.image.blit(txt, (4, 0))
+
+    def update(self):
+        if self.p_type == "SHARP":
+            self.rect.x += self.vx
+        elif self.p_type == "FLAT_GRANADE":
+            self.rect.x += self.vx
+            self.vy += 0.5
+            self.rect.y += self.vy
+        if self.rect.left > WIDTH or self.rect.bottom > GROUND_Y + 50:
+            self.kill()
+
+class FireBall(pygame.sprite.Sprite):
+    def __init__(self, x, y, vx, vy):
+        super().__init__()
+        self.image = pygame.Surface((20, 20), pygame.SRCALPHA)
+        self.rect = self.image.get_rect(center=(x, y))
+        self.vx = vx
+        self.vy = vy
+        pygame.draw.circle(self.image, (255, 100, 0), (10, 10), 9)
+        pygame.draw.circle(self.image, (255, 255, 0), (10, 10), 5)
+
+    def update(self):
+        self.rect.x += self.vx
+        self.rect.y += self.vy
+        if self.rect.right < 0 or self.rect.left > WIDTH or self.rect.top < 0 or self.rect.bottom > HEIGHT:
+            self.kill()
+
+class ItemNote(pygame.sprite.Sprite):
+    def __init__(self, note_key, figure_type, difficulty_factor):
+        super().__init__()
+        self.note_name = note_key
+        self.freq, self.target_y, self.has_ledger = NOTES_DICT[note_key]
+        self.type = figure_type
+        if self.type == "REDONDA":
+            self.sound_duration = 0.8
+            self.value = 40
+            self.color = (200, 160, 0)
+        elif self.type == "BLANCA":
+            self.sound_duration = 0.4
+            self.value = 20
+            self.color = COLOR_BLANCA
+        else:
+            self.sound_duration = 0.3
+            self.value = 10
+            self.color = (230, 230, 240)
+
+        self.image = pygame.Surface((44, 44), pygame.SRCALPHA)
+        self.rect = self.image.get_rect(x=WIDTH + random.randint(10, 60), centery=self.target_y)
+        self.speed = 0.75 + difficulty_factor * 0.2
+        self._render()
+
+    def _render(self):
+        if self.type == "REDONDA":
+            pygame.draw.ellipse(self.image, self.color, (6, 14, 18, 12), 3)
+        elif self.type == "BLANCA":
+            pygame.draw.ellipse(self.image, self.color, (8, 16, 14, 10), 3)
+            pygame.draw.line(self.image, self.color, (21, 2), (21, 21), 2)
+        else:
+            pygame.draw.ellipse(self.image, self.color, (8, 16, 14, 10))
+            pygame.draw.line(self.image, self.color, (21, 2), (21, 21), 2)
+
+        if "#" in self.note_name:
+            font_s = pygame.font.Font(None, 16)
+            txt_s = font_s.render("#", True, self.color)
+            self.image.blit(txt_s, (0, 12))
+
+        if self.has_ledger:
+            pygame.draw.line(self.image, (255, 255, 255), (2, 21), (28, 21), 2)
+
+        font = pygame.font.Font(None, 14)
+        txt = font.render(self.note_name.replace("+", ""), True, (255, 200, 100))
+        self.image.blit(txt, (4, 28))
+
+    def update(self):
+        self.rect.x -= self.speed
+        if self.rect.right < 0:
+            self.kill()
+
+class ClefBox(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.image = pygame.Surface((40, 40), pygame.SRCALPHA)
+        self.anim = 0
+        self.rect = self.image.get_rect(x=WIDTH + 50, y=GROUND_Y - 60)
+
+    def update(self):
+        self.anim += 0.1
+        self.image.fill((0, 0, 0, 0))
+        pulse = int(math.sin(self.anim) * 2)
+        pygame.draw.rect(self.image, (255, 215, 0), (0, 0, 40, 40), border_radius=8)
+        pygame.draw.rect(self.image, (255, 255, 255), (4, 4, 32, 32), border_radius=4)
+        pygame.draw.rect(self.image, (200, 150, 0), (0, 0, 40, 40), width=3, border_radius=8)
+        font = pygame.font.Font(None, 34 + pulse)
+        txt = font.render("?", True, (180, 20, 20))
+        self.image.blit(txt, (12 - pulse//2, 4))
+        self.rect.x -= 2
+        if self.rect.right < 0:
+            self.kill()
+
+class SilenceBomb(pygame.sprite.Sprite):
+    def __init__(self, difficulty_factor):
+        super().__init__()
+        self.image = pygame.Surface((36, 36), pygame.SRCALPHA)
+        pygame.draw.rect(self.image, (30, 30, 35), (2, 2, 32, 32), border_radius=6)
+        pygame.draw.rect(self.image, (180, 30, 30), (2, 2, 32, 32), width=2, border_radius=6)
+        font = pygame.font.Font(None, 28)
+        txt = font.render("?", True, (220, 40, 40))
+        self.image.blit(txt, (11, 6))
+        self.rect = self.image.get_rect(x=WIDTH + random.randint(20, 100), y=GROUND_Y - random.randint(40, 140))
+        self.speed = 2.2 + difficulty_factor * 0.8
+
+    def update(self):
+        self.rect.x -= self.speed
+        if self.rect.right < 0:
+            self.kill()
+
+class SpiderEnemy(pygame.sprite.Sprite):
+    def __init__(self, target_player, difficulty_factor):
+        super().__init__()
+        self.target = target_player
+        self.image = pygame.Surface((46, 36), pygame.SRCALPHA)
+        self.rect = self.image.get_rect(x=WIDTH + random.randint(20, 100), y=GROUND_Y - 36)
+        self.base_speed = (random.uniform(1.5, 2.6) + difficulty_factor * 0.5) * 1.05
+        self.wobble_timer = random.uniform(0, math.pi * 2)
+        self._draw_spider()
+
+    def _draw_spider(self):
+        pygame.draw.ellipse(self.image, COLOR_SPIDER, (10, 8, 26, 20))
+        for px in range(12, 34, 4):
+            pygame.draw.line(self.image, (40, 0, 50), (px, 6), (px, 10), 2)
+        for ox in [14, 18, 22, 26]:
+            pygame.draw.circle(self.image, (255, 50, 0), (ox, 13), 2)
+            pygame.draw.circle(self.image, (255, 255, 255), (ox, 13), 1)
+        pygame.draw.lines(self.image, COLOR_SPIDER, False, [(12, 18), (2, 4), (0, 24)], 3)
+        pygame.draw.lines(self.image, COLOR_SPIDER, False, [(32, 18), (42, 4), (44, 24)], 3)
+
+    def update(self):
+        self.wobble_timer += 0.12
+        dx = self.target.rect.x - self.rect.x
+        dy = self.target.rect.y - self.rect.y
+        dist = math.hypot(dx, dy)
+        if dist != 0:
+            self.rect.x += (dx / dist) * self.base_speed
+            self.rect.y += (dy / dist) * (self.base_speed * 0.4) + math.sin(self.wobble_timer) * 1.5
+        if self.rect.bottom >= GROUND_Y:
+            self.rect.bottom = GROUND_Y
+        if self.rect.right < 0:
+            self.kill()
+
+class GiantSpiderEnemy(pygame.sprite.Sprite):
+    def __init__(self, fireballs_group):
+        super().__init__()
+        self.image = pygame.Surface((90, 70), pygame.SRCALPHA)
+        self.rect = self.image.get_rect(x=WIDTH + random.randint(40, 120), y=GROUND_Y - 70)
+        self.hp = 12
+        self.max_hp = 12
+        self.fireballs = fireballs_group
+        self.shoot_timer = 50
+        self._draw_giant_spider()
+
+    def _draw_giant_spider(self):
+        self.image.fill((0, 0, 0, 0))
+        pygame.draw.ellipse(self.image, COLOR_BIG_SPIDER, (15, 12, 60, 44))
+        for dx in range(30, 55, 4):
+            pygame.draw.polygon(self.image, (255, 255, 255), [(dx, 48), (dx+2, 54), (dx+4, 48)])
+        for ox in [30, 40, 50, 60]:
+            pygame.draw.circle(self.image, (255, 0, 0), (ox, 22), 4)
+        pygame.draw.lines(self.image, COLOR_BIG_SPIDER, False, [(20, 25), (4, 5), (0, 50)], 5)
+        pygame.draw.lines(self.image, COLOR_BIG_SPIDER, False, [(70, 25), (86, 5), (90, 50)], 5)
+        pygame.draw.rect(self.image, (100, 100, 100), (20, 0, 50, 6))
+        hp_w = int(50 * (self.hp / self.max_hp))
+        pygame.draw.rect(self.image, (200, 0, 0), (20, 0, max(0, hp_w), 6))
+
+    def update(self):
+        self.rect.x -= 1.05
+        self.shoot_timer += 1
+        if self.shoot_timer >= 120:
+            self.shoot_timer = 0
+            for angle in [-0.15, 0.0, 0.15]:
+                vx = -4.0 * math.cos(angle)
+                vy = 4.0 * math.sin(angle)
+                fb = FireBall(self.rect.left, self.rect.centery, vx, vy)
+                self.fireballs.add(fb)
+        if self.rect.right < 0:
+            self.kill()
+
+class BossBaal(pygame.sprite.Sprite):
+    def __init__(self, fireballs_group):
+        super().__init__()
+        self.image = pygame.Surface((240, 260), pygame.SRCALPHA)
+        self.rect = self.image.get_rect(midbottom=(WIDTH - 150, GROUND_Y))
+        self.hp = 120
+        self.max_hp = 120
+        self.fireballs = fireballs_group
+        self.attack_timer = 0
+        self._draw_baal()
+
+    def _draw_baal(self):
+        self.image.fill((0, 0, 0, 0))
+        pygame.draw.polygon(self.image, COLOR_BOSS_BAAL, [(60, 250), (180, 250), (210, 120), (30, 120)])
+        pygame.draw.polygon(self.image, (25, 5, 35), [(120, 10), (70, 90), (170, 90)])
+        pygame.draw.polygon(self.image, (180, 20, 40), [(120, 20), (90, 80), (150, 80)])
+        pygame.draw.ellipse(self.image, (200, 50, 255), (100, 80, 40, 20))
+        pygame.draw.circle(self.image, (255, 255, 255), (120, 90), 5)
+        pygame.draw.lines(self.image, (150, 20, 30), False, [(30, 130), (5, 170), (25, 210)], 6)
+        pygame.draw.lines(self.image, (150, 20, 30), False, [(210, 130), (235, 170), (215, 210)], 6)
+
+    def update(self):
+        self.rect.y = (GROUND_Y - 260) + math.sin(pygame.time.get_ticks() * 0.005) * 30
+        self.attack_timer += 1
+        if self.attack_timer >= 50:
+            self.attack_timer = 0
+            play_boss_ugly_sound()
+            fb = FireBall(self.rect.left, self.rect.centery, -6.0, random.uniform(-1.5, 1.5))
+            self.fireballs.add(fb)
+
+def run_level():
+    timmy = Timmy()
+    bg_art = NightViolinBackground()
+    all_sprites = pygame.sprite.Group(timmy)
+    projectiles = pygame.sprite.Group()
+    fireballs = pygame.sprite.Group()
+    items = pygame.sprite.Group()
+    enemies = pygame.sprite.Group()
+    clef_boxes = pygame.sprite.Group()
+    silence_bombs = pygame.sprite.Group()
+    explosions = pygame.sprite.Group()
+    keys_group = pygame.sprite.Group()
+    doors_group = pygame.sprite.Group()
+
+    start_ticks = pygame.time.get_ticks()
+    scroll_offset = 0
+    boss_spawned = False
+    boss_ref = None
+    game_over = False
+    victory = False
+    is_paused = False
+    door_spawned = False
+
+    spawn_enemy_timer = 0
+    spawn_giant_timer = 0
+    spawn_item_timer = 0
+    spawn_bomb_timer = 0
+    note_in_song_idx = 0
+
+    font_hud = pygame.font.Font(None, 26)
+    font_boss = pygame.font.Font(None, 34)
+    font_big = pygame.font.Font(None, 54)
+    font_huge_baal = pygame.font.Font(None, 68)
+    font_btn = pygame.font.Font(None, 32)
+
+    baal_title_timer = 0
+
+    running = True
+    while running:
+        clock.tick(FPS)
+        scroll_offset += 1.5
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return "QUIT"
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    return "QUIT"
+                if event.key == pygame.K_p:
+                    is_paused = not is_paused
+                if game_over or victory:
+                    if event.key == pygame.K_r:
+                        return "RESTART"
+                    elif event.key == pygame.K_q:
+                        return "QUIT"
+                if not game_over and not victory and not is_paused:
+                    if event.key in (pygame.K_SPACE, pygame.K_w, pygame.K_UP):
+                        timmy.jump()
+                    elif event.key in (pygame.K_s, pygame.K_DOWN):
+                        timmy.crouch(True)
+                    elif event.key in (pygame.K_j, pygame.K_z):
+                        if timmy.ammo_sharps > 0:
+                            p = Projectile(timmy.rect.right, timmy.rect.centery, "SHARP", timmy.weapon_level)
+                            all_sprites.add(p)
+                            projectiles.add(p)
+                            timmy.ammo_sharps -= 1
+                            play_white_noise_shot()
+                    elif event.key in (pygame.K_k, pygame.K_x):
+                        if timmy.ammo_flats > 0:
+                            p = Projectile(timmy.rect.right, timmy.rect.centery, "FLAT_GRANADE")
+                            all_sprites.add(p)
+                            projectiles.add(p)
+                            timmy.ammo_flats -= 1
+                            play_white_noise_shot()
+            elif event.type == pygame.KEYUP:
+                if event.key in (pygame.K_s, pygame.K_DOWN):
+                    timmy.crouch(False)
+
+        if not game_over and not victory and not is_paused:
+            elapsed_sec = (pygame.time.get_ticks() - start_ticks) / 1000
+            difficulty_factor = min(1.0, elapsed_sec / GAME_DURATION_SEC)
+
+            if not boss_spawned:
+                spawn_enemy_timer += 1
+                spawn_giant_timer += 1
+                spawn_item_timer += 1
+                spawn_bomb_timer += 1
+
+                if spawn_enemy_timer >= max(20, int(50 - (difficulty_factor * 20))):
+                    spider = SpiderEnemy(timmy, difficulty_factor)
+                    all_sprites.add(spider)
+                    enemies.add(spider)
+                    spawn_enemy_timer = 0
+
+                if spawn_giant_timer >= 420:
+                    g_spider = GiantSpiderEnemy(fireballs)
+                    all_sprites.add(g_spider)
+                    enemies.add(g_spider)
+                    spawn_giant_timer = 0
+
+                bomb_interval = max(80, int(200 - (difficulty_factor * 70)))
+                if spawn_bomb_timer >= bomb_interval:
+                    s_bomb = SilenceBomb(difficulty_factor)
+                    all_sprites.add(s_bomb)
+                    silence_bombs.add(s_bomb)
+                    spawn_bomb_timer = 0
+
+                if spawn_item_timer >= 80:
+                    note_key, figure_type = PARA_ELISE_SEQUENCE[note_in_song_idx]
+                    note_in_song_idx += 1
+                    if note_in_song_idx >= len(PARA_ELISE_SEQUENCE):
+                        note_in_song_idx = 0
+
+                    note = ItemNote(note_key, figure_type, difficulty_factor)
+                    all_sprites.add(note)
+                    items.add(note)
+
+                    if random.random() < 0.4:
+                        clef = ClefBox()
+                        all_sprites.add(clef)
+                        clef_boxes.add(clef)
+                    spawn_item_timer = 0
+
+                if elapsed_sec >= GAME_DURATION_SEC and not boss_spawned:
+                    boss_spawned = True
+                    boss_ref = BossBaal(fireballs)
+                    all_sprites.add(boss_ref)
+                    enemies.add(boss_ref)
+                    baal_title_timer = 120
+
+            if baal_title_timer > 0:
+                baal_title_timer -= 1
+
+            all_sprites.update()
+            silence_bombs.update()
+            fireballs.update()
+            explosions.update()
+            keys_group.update()
+            doors_group.update()
+
+            for note in items:
+                if timmy.rect.colliderect(note.rect):
+                    play_tone(note.freq, note.sound_duration, 0.4)
+                    timmy.score_times += note.value
+                    if note.type == "REDONDA":
+                        timmy.lives = min(25, timmy.lives + 3)
+                    elif note.type == "BLANCA":
+                        timmy.lives = min(25, timmy.lives + 1)
+
+                    timmy.evolve_weapon_check()
+                    exp = NoteExplosion(note.rect.centerx, note.rect.centery, note.color)
+                    all_sprites.add(exp)
+                    note.kill()
+
+            for clef in clef_boxes:
+                if timmy.rect.colliderect(clef.rect):
+                    timmy.ammo_sharps += 25
+                    timmy.ammo_flats += 10
+                    play_powerup_sound()
+                    clef.kill()
+
+            for bomb in silence_bombs:
+                if timmy.rect.colliderect(bomb.rect):
+                    timmy.lives -= 3
+                    play_bomb_explosion_sound()
+                    exp = MassiveExplosion(bomb.rect.centerx, bomb.rect.centery, 50)
+                    all_sprites.add(exp)
+                    if timmy.lives <= 0:
+                        game_over = True
+                        play_defeat_sound()
+                    bomb.kill()
+
+            for p in projectiles:
+                for bomb in pygame.sprite.spritecollide(p, silence_bombs, True):
+                    bg_art.trigger_surprise()
+                    play_bomb_explosion_sound()
+                    exp = MassiveExplosion(bomb.rect.centerx, bomb.rect.centery, 40)
+                    all_sprites.add(exp)
+                    p.kill()
+
+                for enemy in pygame.sprite.spritecollide(p, enemies, False):
+                    bg_art.trigger_surprise()
+                    if isinstance(enemy, GiantSpiderEnemy) or isinstance(enemy, BossBaal):
+                        enemy.hp -= 1
+                        play_big_bug_death()
+                        if enemy.hp <= 0:
+                            play_bomb_explosion_sound()
+                            exp = MassiveExplosion(enemy.rect.centerx, enemy.rect.centery, 80)
+                            all_sprites.add(exp)
+                            
+                            if isinstance(enemy, BossBaal) and not door_spawned:
+                                # La puerta se crea a la derecha y la llave dorada aparece claramente delante de ella
+                                door = DoorObject(WIDTH - 170, GROUND_Y)
+                                all_sprites.add(door)
+                                doors_group.add(door)
+
+                                key = KeyItem(WIDTH - 230, GROUND_Y - 40)
+                                all_sprites.add(key)
+                                keys_group.add(key)
+
+                                door_spawned = True
+
+                            enemy.kill()
+                    else:
+                        play_small_bug_death()
+                        exp = NoteExplosion(enemy.rect.centerx, enemy.rect.centery, (255, 100, 0))
+                        all_sprites.add(exp)
+                        enemy.kill()
+                    p.kill()
+
+            for key in keys_group:
+                if timmy.rect.colliderect(key.rect):
+                    timmy.has_key = True
+                    play_key_pickup_sound()
+                    key.kill()
+                    for door in doors_group:
+                        door.open_door()
+
+            for door in doors_group:
+                if door.is_open and timmy.rect.colliderect(door.rect):
+                    victory = True
+                    play_fur_elise_victory()
+
+            for fb in fireballs:
+                if timmy.rect.colliderect(fb.rect):
+                    timmy.lives -= 1
+                    play_tone(100, 0.2, 0.4)
+                    if timmy.lives <= 0:
+                        game_over = True
+                        play_defeat_sound()
+                    fb.kill()
+
+            for enemy in enemies:
+                if timmy.rect.colliderect(enemy.rect):
+                    timmy.lives -= 1
+                    play_tone(110, 0.2, 0.4)
+                    if timmy.lives <= 0:
+                        game_over = True
+                        play_defeat_sound()
+                    timmy.rect.x -= 20
+
+        bg_art.draw(screen, scroll_offset, boss_spawned)
+
+        pygame.draw.rect(screen, COLOR_STAFF, (0, GROUND_Y, WIDTH, HEIGHT - GROUND_Y))
+        for i in range(5):
+            line_y = STAFF_BOTTOM_Y - i * STAFF_STEP
+            pygame.draw.line(screen, (190, 190, 210), (0, line_y), (WIDTH, line_y), 2)
+
+        all_sprites.draw(screen)
+        keys_group.draw(screen)
+        doors_group.draw(screen)
+        silence_bombs.draw(screen)
+        fireballs.draw(screen)
+
+        remaining_sec = max(0, int(GAME_DURATION_SEC - ((pygame.time.get_ticks() - start_ticks) / 1000))) if not boss_spawned else 0
+
+        txt_lives = font_hud.render(f"Vidas: {timmy.lives}", True, COLOR_HUD)
+        txt_score = font_hud.render(f"Puntuación: {int(timmy.score_times)}", True, COLOR_HUD)
+        txt_sharps = font_hud.render(f"Sostenidos (#): {timmy.ammo_sharps}", True, COLOR_SHARP)
+        txt_flats = font_hud.render(f"Bemoles (b): {timmy.ammo_flats}", True, COLOR_FLAT)
+        txt_level = font_hud.render(f"NIVEL 2: EL VIOLÍN (Jefe en: {remaining_sec}s)" if not boss_spawned else "NIVEL 2: ¡JEFE BAAL!", True, COLOR_HUD)
+
+        screen.blit(txt_lives, (20, 15))
+        screen.blit(txt_score, (150, 15))
+        screen.blit(txt_sharps, (320, 15))
+        screen.blit(txt_flats, (520, 15))
+        screen.blit(txt_level, (720, 15))
+
+        if boss_spawned and boss_ref and boss_ref.alive():
+            pygame.draw.rect(screen, (50, 50, 50), (WIDTH - 300, 50, 260, 20), border_radius=5)
+            hp_ratio = max(0, boss_ref.hp / boss_ref.max_hp)
+            pygame.draw.rect(screen, (180, 20, 180), (WIDTH - 300, 50, int(260 * hp_ratio), 20), border_radius=5)
+            boss_txt = font_boss.render("BAAL", True, (255, 255, 255))
+            screen.blit(boss_txt, (WIDTH - 200, 20))
+
+        if baal_title_timer > 0:
+            baal_surf = font_huge_baal.render("¡BAAL HA DESPERTADO!", True, (200, 40, 220))
+            screen.blit(baal_surf, (WIDTH//2 - baal_surf.get_width()//2, HEIGHT//3))
+
+        if is_paused:
+            overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 150))
+            screen.blit(overlay, (0, 0))
+            pause_txt = font_big.render("JUEGO EN PAUSA", True, (255, 255, 255))
+            screen.blit(pause_txt, (WIDTH//2 - pause_txt.get_width()//2, HEIGHT//2 - 30))
+
+        if game_over or victory:
+            overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 180))
+            screen.blit(overlay, (0, 0))
+            if victory:
+                msg = font_big.render("¡NIVEL 3 DESBLOQUEADO!", True, (100, 255, 100))
+            else:
+                msg = font_big.render("¡GAME OVER!", True, (255, 100, 100))
+            screen.blit(msg, (WIDTH//2 - msg.get_width()//2, HEIGHT//2 - 60))
+            
+            sub_msg = font_btn.render("Presiona 'R' para Reiniciar o 'Q' para Salir", True, (255, 255, 255))
+            screen.blit(sub_msg, (WIDTH//2 - sub_msg.get_width()//2, HEIGHT//2 + 10))
+
+        pygame.display.flip()
+
+    return "QUIT"
+
+def main():
+    while True:
+        res = run_level()
+        if res == "QUIT":
+            break
+    pygame.quit()
+    sys.exit()
+
+if __name__ == "__main__":
+    main()
+EOF
+
+python3 juego_violin_baal_perfecto.py
